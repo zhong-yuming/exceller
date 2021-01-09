@@ -1,0 +1,5 @@
+future==0.18.2
+pandas==1.2.0
+xlwings==0.21.4
+
+PyQt5~=5.15.2
