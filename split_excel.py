@@ -6,11 +6,13 @@ from tkinter import filedialog, messagebox, simpledialog
 import os
 import time
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 # 第三方模块
 import xlwings as xw
 # 自建模块
 from excel_logger import logger
-from utils import is_empty
+from utils import is_empty, write_data2excel
 
 
 class SplitExcel(object):
@@ -23,6 +25,7 @@ class SplitExcel(object):
         self.groups_dict = dict()
         self.app = xw.App(visible=False, add_book=False)
         self.sheet_header = []
+        self.thread_pool = ThreadPoolExecutor(max_workers=5)
 
     def __confirm_file_and_folder(self):
         """让用户选择文件和保存目录"""
@@ -48,7 +51,7 @@ class SplitExcel(object):
     @staticmethod
     def __select_area():
         """与用户交互，由用户选择要读取的 Excel 区域"""
-        selected_area = str(simpledialog.askstring(title='选择区域', prompt='请选择Excel读取区域，如 A5:E6000 或 a5:e6000')).strip()
+        selected_area = str(simpledialog.askstring(title='选择区域', prompt='请选择Excel读取区域，如 A4:E500 或 a4:e500')).strip()
         logger.info('用户输入的 Excel 区域为：%s', selected_area)
         # 选择的区域不能为空，且要合法
         if not is_empty(selected_area):
@@ -61,7 +64,7 @@ class SplitExcel(object):
     @staticmethod
     def __select_group_by():
         """选择根据哪一列来进行分组"""
-        group_by = str(simpledialog.askstring(title='选择分组列', prompt='请选择根据哪列进行分组，如 A 或 a')).strip()
+        group_by = str(simpledialog.askstring(title='选择分组列', prompt='请选择根据哪列进行分组，如 E 或 e')).strip()
         logger.info('用户选择了 %s 列来进行分组', group_by)
         # 不能为空，且要合法
         if not is_empty(group_by):
@@ -98,7 +101,7 @@ class SplitExcel(object):
 
     def __read_excel_data(self, selected_area, group_by):
         """根据传入的 Excel 区域，从 Excel 文件中读取数据，并分组存放到一个字典中"""
-        logger.info('开始从源 Excel 文件中读取数据')
+        logger.info('从源 Excel 文件中读取数据-开始')
         try:
             data = self.worksheet.range(selected_area).value
             self.sheet_header = data[0]
@@ -106,7 +109,7 @@ class SplitExcel(object):
                 group_name = str(col_cell_list[group_by]).strip()  # 剔除字符串两边空格
                 if is_empty(group_name):
                     continue
-                # 如果不为空，对其进行切片处理，取前 5 个字符来作为组名
+                # 如果不为空，来对其进行切片处理，取前 5 个字符作为组名
                 # group_name = group_name[:5]
                 if group_name in self.groups_dict:
                     self.groups_dict.get(group_name).append(col_cell_list)
@@ -118,24 +121,14 @@ class SplitExcel(object):
 
     def __split2write_data(self):
         """将从 Excel 读取出来的数据分写到不同的 Excel 文件中"""
-        logger.info('开始将数据分写到 Excel 文件中')
+        logger.info('将数据分写到 Excel 文件中-开始')
         # 遍历字典 groups_dict
-        # todo 可以考虑使用多进程来进行读写，加快速度
-        for group_name, data in self.groups_dict.items():
-            # 新建 Excel 文件
-            self.workbook = self.app.books.add()
-            self.worksheet = self.workbook.sheets['Sheet1']
-            # 将数据写入
-            try:
-                self.worksheet.range('A1').value = self.sheet_header
-                self.worksheet.range('A2').value = data
-                self.worksheet.autofit()
-
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            for group_name, data in self.groups_dict.items():
+                # 使用多线程调用方法，将数据写入 Excel 文件中
                 save_path = os.path.join(self.root_folder_path, group_name + '.xlsx')  # 保存路径
-                self.workbook.save(save_path)  # 保存
-            except Exception as e:
-                logger.error('将数据写入 Excel 文件失败，报错：%s', e)
-                raise Exception
+                executor.submit(write_data2excel, save_path, self.sheet_header, data)
+        logger.info('将数据分写到 Excel 文件中-结束')
 
     def __release_src(self):
         logger.info('程序即将结束，开始释放资源')
