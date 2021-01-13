@@ -6,6 +6,8 @@
 """
 from excel_logger import logger
 import xlwings as xw
+import xlwt
+
 
 
 def is_empty(obj):
@@ -16,19 +18,27 @@ def is_empty(obj):
 def write_data2excel(filename, sheet_header, body_data):
     """将数据写入 Excel 文件中"""
     # 新建 Excel 文件
-    app = xw.App(add_book=False, visible=False)
-    workbook = app.books.add()
-    worksheet = workbook.sheets['Sheet1']
+    workbook = xlwt.Workbook(encoding='UTF-8')
+    worksheet = workbook.add_sheet('Sheet1')
     try:
         # 写入数据
-        worksheet.range('A1').value = sheet_header  # 在第一行中写入表头
-        worksheet.range('A2').value = body_data  # 在第二行中写入主体数据
-        worksheet.autofit()  # 自动调整行列的宽高
+        # 在第一行中写入表头
+        for col_num, cell_data in enumerate(sheet_header):
+            worksheet.write(0, col_num, cell_data)
+        # 在第二行中写入主体数据
+        for row_num, row_data in enumerate(body_data):
+            for col_num, cell_data in enumerate(row_data):
+                worksheet.write(row_num + 1, col_num, cell_data)
+
+        # 调整列宽
+        worksheet.col(0).width = 256 * 10
+        worksheet.col(1).width = 256 * 20
+        worksheet.col(2).width = 256 * 40
+        worksheet.col(3).width = 256 * 20
+        worksheet.col(4).width = 256 * 40
+        # 设置表头行高
+        worksheet.row(0).set_style(xlwt.easyxf('font:height 360;'))
         workbook.save(filename)  # 保存，filename为file的全路径
     except Exception as e:
         logger.error('将数据写入 Excel 文件失败，报错：%s', e)
         raise Exception
-    finally:
-        # 无论是否有异常，都需要释放资源，否则会很容易出现内存溢出
-        workbook.close()
-        app.quit()

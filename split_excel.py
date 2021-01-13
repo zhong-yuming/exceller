@@ -126,7 +126,7 @@ class SplitExcel(object):
         with ThreadPoolExecutor(max_workers=5) as executor:
             for group_name, data in self.groups_dict.items():
                 # 使用多线程调用方法，将数据写入 Excel 文件中
-                save_path = os.path.join(self.root_folder_path, group_name + '.xlsx')  # 保存路径
+                save_path = os.path.join(self.root_folder_path, group_name + '.xls')  # 保存路径
                 executor.submit(write_data2excel, save_path, self.sheet_header, data)
         logger.info('将数据分写到 Excel 文件中-结束')
 
