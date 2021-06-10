@@ -55,7 +55,7 @@ class SplitExcel(object):
         logger.info('用户输入的 Excel 区域为：%s', selected_area)
         # 选择的区域不能为空，且要合法
         if not is_empty(selected_area):
-            if re.match(r'^[a-zA-Z]\d+:[a-zA-Z]\d+$', selected_area):
+            if re.match(r'^[a-zA-Z]{1,2}\d+:[a-zA-Z]{1,2}\d+$', selected_area):
                 return selected_area.upper()  # 将 a5:e6000 转换为 A5:E6000
         logger.error('没有选择区域或输入的区域格式不正确')
         messagebox.showwarning(title='提示信息', message='没有选择区域或输入的区域格式不正确')
